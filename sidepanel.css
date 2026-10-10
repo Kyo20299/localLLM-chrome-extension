@@ -77,7 +77,7 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--accent); }
 .row { display: flex; gap: 6px; align-items: center; }
 select { flex: 1; min-width: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-#settings-panel button:not(.row *) {
+#btn-save-settings {
   background: var(--accent);
   color: #fff;
   border: none;
@@ -85,6 +85,10 @@ select { flex: 1; min-width: 0; }
   padding: 7px;
   cursor: pointer;
 }
+#settings-status { font-size: 12px; min-height: 14px; }
+#settings-status.ok { color: #3f9e6b; }
+#settings-status.warn { color: #c98a2d; }
+#settings-status.err { color: #d9534f; }
 .row button {
   background: none;
   border: 1px solid var(--border);

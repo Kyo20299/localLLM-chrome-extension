@@ -22,21 +22,35 @@ function applyToInputs() {
 
 async function refreshModels() {
   const btn = $("btn-refresh-models");
+  const dl = $("dl-models");
   btn.disabled = true;
   try {
     const models = await fetchModels(settings.baseUrl, settings.apiKey);
-    const dl = $("dl-models");
     dl.innerHTML = models.map((m) => `<option value="${escapeAttr(m)}">`).join("");
     if (models.length && !models.includes(settings.model)) {
       $("inp-model").value = models[0];
       settings.model = models[0];
     }
+    return true;
   } catch (e) {
     console.warn("Model list unavailable:", e.message);
     dl.innerHTML = ""; // manual entry still works
+    return false;
   } finally {
     btn.disabled = false;
   }
+}
+
+function showStatus(text, kind) {
+  const el = $("settings-status");
+  if (!el) return;
+  el.textContent = text;
+  el.className = kind || "";
+  clearTimeout(showStatus.timer);
+  showStatus.timer = setTimeout(() => {
+    el.textContent = "";
+    el.className = "";
+  }, 5000);
 }
 
 function escapeAttr(s) {
@@ -153,16 +167,39 @@ async function init() {
 
   // Save settings
   $("btn-save-settings").addEventListener("click", async () => {
+    const baseUrl = $("inp-base-url").value.trim();
+    let parsed;
+    try {
+      parsed = new URL(baseUrl);
+    } catch {
+      showStatus(`Invalid base URL: "${baseUrl || "(empty)"}"`, "err");
+      return;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      showStatus("Base URL must use http:// or https://", "err");
+      return;
+    }
     settings = {
-      baseUrl: $("inp-base-url").value.trim() || DEFAULT_BASE,
+      baseUrl,
       apiKey: $("inp-api-key").value.trim(),
       model: $("inp-model").value.trim(),
       temperature: Number($("inp-temperature").value) || 0.7,
       maxTokens: $("inp-max-tokens").value ? Number($("inp-max-tokens").value) : null,
       systemPrompt: $("inp-system-prompt").value,
     };
-    await saveSettings(settings);
-    refreshModels();
+    try {
+      await saveSettings(settings);
+    } catch (e) {
+      showStatus(`Save failed: ${e.message}`, "err");
+      return;
+    }
+    const modelsOk = await refreshModels();
+    showStatus(
+      modelsOk
+        ? "Settings saved"
+        : `Saved — model list unavailable at ${baseUrl} (server down or CORS blocked)`,
+      modelsOk ? "ok" : "warn"
+    );
   });
 
   // Model list refresh (also run on load, best-effort)
@@ -179,5 +216,4 @@ async function init() {
   $("btn-stop").addEventListener("click", () => currentController?.abort());
 }
 
-const DEFAULT_BASE = "http://localhost:11434/v1";
 init().catch((e) => console.error(e));
