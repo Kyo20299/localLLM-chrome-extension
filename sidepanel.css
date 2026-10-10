@@ -124,6 +124,28 @@ select { flex: 1; min-width: 0; }
 }
 @keyframes blink { 50% { opacity: 0; } }
 
+/* Page context bar */
+#page-bar { padding: 0 10px 6px; }
+#btn-page-ctx {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#btn-page-ctx.on {
+  border-color: var(--accent);
+  color: var(--fg);
+  background: rgba(79, 124, 255, 0.10);
+}
+
 /* Composer */
 #composer {
   display: flex;

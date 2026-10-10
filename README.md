@@ -14,6 +14,7 @@ The extension speaks the **OpenAI-compatible HTTP API**, so it works with any se
 - 🤖 **Model picker** auto-fetched from your server's `/v1/models` (with manual entry fallback and `<datalist>` suggestions)
 - ⚙️ **Full inference controls**: base URL, optional API key, temperature, max tokens, system prompt
 - 🔌 **One-tap presets** for Ollama (`http://localhost:11434/v1`) and LM Studio (`http://localhost:1234/v1`), plus free-form custom endpoints
+- 📄 **Page context (opt-in)** — toggle the 📄 bar to include your current tab's text in every message, so you can ask things like *“write a conclusion for this article”* or *“summarize what this page says about X”*. Content is fetched on demand, truncated to ~12k chars, and sent only to your own endpoint
 - 📝 **Lightweight markdown rendering** — code blocks, bold, italic, links. Zero dependencies, all output HTML-escaped (no injection from model text)
 - 💾 **Persistent settings** via `chrome.storage.local`
 - 🌗 **Dark mode aware** UI following your OS preference
@@ -55,6 +56,18 @@ The extension speaks the **OpenAI-compatible HTTP API**, so it works with any se
 | System prompt | textarea | "You are a helpful assistant." | Prepended as a `system` message; leave empty to disable |
 
 Settings persist in `chrome.storage.local` and survive browser restarts.
+
+### Using page context
+
+1. Navigate to the page you want help with (article, docs, paper…)
+2. Click the **📄 bar** above the input — it shows the active tab's host + title and turns blue when enabled (`include: on`)
+3. Ask your question normally (*“draft a conclusion for this page”*)
+
+What happens under the hood:
+- On each send, the panel injects a small extractor into the **active tab** via `chrome.scripting.executeScript` (nothing runs in your pages unless you toggle it on and send)
+- The extractor strips `script/style/nav/header/footer/form/iframe/…`, collapses whitespace, and keeps at most ~12k characters (75% from the start + 25% from the end) so small local models can handle it
+- The result is appended as a **per-turn system message** (`TITLE / URL / CONTENT`) — it is *not* stored in chat memory, so turning the toggle off stops it immediately
+- Restricted pages (`chrome://`, Web Store, PDF viewer, blank tabs) are detected and reported inline instead of failing silently
 
 ## How it works
 
@@ -101,6 +114,7 @@ POST {baseUrl}/chat/completions
 | `sidepanel.js` | Main entry: settings wiring, chat loop, streaming paint (rAF-batched), stop button |
 | `src/api.js` | OpenAI-compatible client — SSE stream parser + model listing |
 | `src/store.js` | Settings load/save over `chrome.storage.local` with defaults |
+| `src/pageContext.js` | On-demand active-tab extraction via `chrome.scripting.executeScript` |
 | `src/markdown.js` | Dependency-free safe markdown renderer |
 | `icons/` | 16 / 48 / 128 px PNG icons |
 
@@ -109,7 +123,7 @@ POST {baseUrl}/chat/completions
 - **No network calls except to the endpoint you configure.** No telemetry, no third-party requests.
 - All model and user text is HTML-escaped before rendering; only `http(s)` URLs become clickable links (`javascript:` etc. stay inert).
 - Settings (including any API key) live in local browser storage only.
-- Minimal permission surface: `sidePanel` + `storage`. No `host_permissions`, no content scripts, no background network access.
+- Permission surface: `sidePanel`, `storage`, plus `tabs` + `scripting` with host permission `<all_urls>` (required to read page text). The broad host permission is **only exercised when you enable the 📄 toggle and send a message** — there is no persistent content script, so your pages are untouched at all other times. Page text goes only to the endpoint *you* configure; it is truncated (~12k chars) and never stored.
 
 ## Troubleshooting
 

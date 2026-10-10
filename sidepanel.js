@@ -2,12 +2,14 @@
 import { loadSettings, saveSettings } from "./src/store.js";
 import { fetchModels, streamChatCompletion } from "./src/api.js";
 import { renderMarkdown } from "./src/markdown.js";
+import { getPageContext, getActiveTab } from "./src/pageContext.js";
 
 const $ = (id) => document.getElementById(id);
 
 let settings = null;
 let history = []; // [{role, content}]
 let currentController = null;
+let includePage = false; // opt-in: append active tab's text to each request
 
 /* ---------- Settings UI ---------- */
 
@@ -91,6 +93,20 @@ async function send() {
   history.push({ role: "user", content: text });
   addMessage("user", text);
 
+  // Opt-in page context: fetched per-turn so it never pollutes chat memory.
+  let pageMsg = null;
+  if (includePage) {
+    const ctx = await getPageContext();
+    if (!ctx || ctx.unavailable) {
+      addMessage("bot", "Page content is not available on this tab (restricted or empty). Try a normal web page.");
+      return;
+    }
+    pageMsg = {
+      role: "system",
+      content: `The user is currently viewing this web page. Use its content as context for their question.\n\nTITLE: ${ctx.title}\nURL: ${ctx.url}\n\nCONTENT:\n${ctx.text}`,
+    };
+  }
+
   const bubble = addMessage("bot", "");
   bubble.classList.add("typing");
   $("btn-send").hidden = true;
@@ -112,6 +128,7 @@ async function send() {
         model: $("inp-model").value.trim(),
         messages: [
           ...(settings.systemPrompt ? [{ role: "system", content: settings.systemPrompt }] : []),
+          ...(pageMsg ? [pageMsg] : []),
           ...history,
         ],
         temperature: settings.temperature,
@@ -135,6 +152,23 @@ async function send() {
     $("btn-send").hidden = false;
     $("btn-stop").hidden = true;
   }
+}
+
+/* ---------- Page context chip ---------- */
+
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+async function updatePageChip() {
+  const bar = $("page-bar");
+  let tab = null;
+  try { tab = await getActiveTab(); } catch (e) { /* ignore */ }
+  if (!tab || !tab.url) { bar.hidden = true; return; }
+  bar.hidden = false;
+  let host;
+  try { host = new URL(tab.url).host; } catch { host = tab.url; }
+  $("page-title").textContent = truncate(`${host} — ${tab.title || "untitled"}`, 48);
 }
 
 /* ---------- Composer helpers ---------- */
@@ -205,6 +239,16 @@ async function init() {
   // Model list refresh (also run on load, best-effort)
   $("btn-refresh-models").addEventListener("click", refreshModels);
   refreshModels();
+
+  // Page context chip (toggle + live tab title)
+  $("btn-page-ctx").addEventListener("click", () => {
+    includePage = !includePage;
+    $("btn-page-ctx").classList.toggle("on", includePage);
+    $("page-state").textContent = `include: ${includePage ? "on" : "off"}`;
+  });
+  chrome.tabs.onActivated.addListener(updatePageChip);
+  window.addEventListener("focus", updatePageChip);
+  updatePageChip();
 
   // Composer
   const input = $("inp-message");
