@@ -98,7 +98,8 @@ async function send() {
   if (includePage) {
     const ctx = await getPageContext();
     if (!ctx || ctx.unavailable) {
-      addMessage("bot", "Page content is not available on this tab (restricted or empty). Try a normal web page.");
+      const reason = ctx && ctx.error ? ` (${ctx.error})` : "";
+      addMessage("bot", `Page content is not available on this tab${reason}. Try a normal web page.`);
       return;
     }
     pageMsg = {

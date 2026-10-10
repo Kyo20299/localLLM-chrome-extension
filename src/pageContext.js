@@ -1,17 +1,17 @@
 // src/pageContext.js - read the active tab's page content ON DEMAND via chrome.scripting.
 // No persistent content script: code is injected only when the user enables page context and sends a message.
 
-const MAX_CHARS = 12000; // ~3k token budget so small local models can handle it
-
 /** Lightweight tab lookup (title/url for the chip UI). */
 export async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab || null;
 }
 
-// Runs inside the target page. Must be self-contained (no closures over module scope),
-// since chrome.scripting serializes this function into the page context.
+// Runs inside the target page. Must be fully self-contained — no references to
+// module-level bindings — because chrome.scripting serializes this function
+// (via .toString()) into a plain page context where those identifiers don't exist.
 function extractPageContext() {
+  const MAX_CHARS = 12000; // ~3k token budget so small local models can handle it
   const clone = document.body.cloneNode(true);
   for (const sel of [
     "script", "style", "noscript", "template", "svg",
@@ -44,11 +44,11 @@ export async function getPageContext() {
       func: extractPageContext,
     });
     const ctx = result.result;
-    if (!ctx.text.trim()) return { ...ctx, unavailable: true };
+    if (!ctx.text.trim()) return { ...ctx, unavailable: true, error: "page has no readable text" };
     return ctx;
   } catch (e) {
     // chrome:// pages, Web Store, PDF viewer, etc. reject injection.
     console.warn("Page context unavailable:", e.message);
-    return { title: tab.title || "", url: tab.url || "", text: "", unavailable: true };
+    return { title: tab.title || "", url: tab.url || "", text: "", unavailable: true, error: e.message };
   }
 }
