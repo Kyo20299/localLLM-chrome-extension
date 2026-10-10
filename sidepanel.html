@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Local LLM</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <header id="app-header">
+    <span id="app-title">Local LLM</span>
+    <button id="settings-btn" title="Settings" aria-label="Settings">&#9881;</button>
+  </header>
+
+  <!-- Settings panel (toggled from header) -->
+  <section id="settings-panel" hidden>
+    <label>Base URL
+      <input type="url" id="inp-base-url" placeholder="http://localhost:11434/v1" />
+    </label>
+    <div class="row">
+      <button id="preset-ollama" title="Ollama">Ollama</button>
+      <button id="preset-lmstudio" title="LM Studio">LM Studio</button>
+      <button id="preset-custom" title="Custom...">Custom</button>
+    </div>
+    <label>API Key (optional)
+      <input type="password" id="inp-api-key" placeholder="not required for most local servers" />
+    </label>
+    <label>Model
+      <span class="row">
+        <input type="text" id="inp-model" list="dl-models" placeholder="model name (e.g. llama3)" />
+        <datalist id="dl-models"></datalist>
+        <button id="btn-refresh-models" title="Fetch model list">&#8635;</button>
+      </span>
+    </label>
+    <div class="grid2">
+      <label>Temperature
+        <input type="number" id="inp-temperature" min="0" max="2" step="0.1" value="0.7" />
+      </label>
+      <label>Max tokens
+        <input type="number" id="inp-max-tokens" min="1" step="1" placeholder="unset" />
+      </label>
+    </div>
+    <label>System prompt
+      <textarea id="inp-system-prompt" rows="3" placeholder="You are a helpful assistant."></textarea>
+    </label>
+    <button id="btn-save-settings">Save settings</button>
+  </section>
+
+  <!-- Chat area -->
+  <main id="chat-area">
+    <div id="messages">
+      <div class="empty-hint" id="empty-hint">
+        Configure your local LLM endpoint with the &#9881; button above, then start chatting.
+      </div>
+    </div>
+  </main>
+
+  <!-- Composer -->
+  <footer id="composer">
+    <textarea id="inp-message" rows="2" placeholder="Type a message… (Enter to send)"></textarea>
+    <button id="btn-send" title="Send">&#9654;</button>
+    <button id="btn-stop" title="Stop generating" hidden>&#9632;</button>
+  </footer>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

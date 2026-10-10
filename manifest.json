@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Local LLM Side Panel",
+  "version": "1.0.0",
+  "description": "Chat with local LLM services (Ollama, LM Studio, llama.cpp, vLLM) in Chrome's native side panel.",
+  "permissions": [
+    "sidePanel",
+    "storage"
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Local LLM Side Panel",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
