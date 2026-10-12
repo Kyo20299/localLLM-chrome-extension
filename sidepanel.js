@@ -2,14 +2,14 @@
 import { loadSettings, saveSettings } from "./src/store.js";
 import { fetchModels, streamChatCompletion } from "./src/api.js";
 import { renderMarkdown } from "./src/markdown.js";
-import { getPageContext, getActiveTab } from "./src/pageContext.js";
+import { listConversations, saveConversation, deleteConversation } from "./src/conversations.js";
 
 const $ = (id) => document.getElementById(id);
 
 let settings = null;
-let history = []; // [{role, content}]
+let history = []; // messages of the ACTIVE conversation: [{role, content}]
+let currentConvId = null; // id of the active conversation (null until first message)
 let currentController = null;
-let includePage = false; // opt-in: append active tab's text to each request
 
 /* ---------- Settings UI ---------- */
 
@@ -92,21 +92,8 @@ async function send() {
   autoresize();
   history.push({ role: "user", content: text });
   addMessage("user", text);
-
-  // Opt-in page context: fetched per-turn so it never pollutes chat memory.
-  let pageMsg = null;
-  if (includePage) {
-    const ctx = await getPageContext();
-    if (!ctx || ctx.unavailable) {
-      const reason = ctx && ctx.error ? ` (${ctx.error})` : "";
-      addMessage("bot", `Page content is not available on this tab${reason}. Try a normal web page.`);
-      return;
-    }
-    pageMsg = {
-      role: "system",
-      content: `The user is currently viewing this web page. Use its content as context for their question.\n\nTITLE: ${ctx.title}\nURL: ${ctx.url}\n\nCONTENT:\n${ctx.text}`,
-    };
-  }
+  if (!currentConvId) currentConvId = crypto.randomUUID();
+  await persistCurrentConversation();
 
   const bubble = addMessage("bot", "");
   bubble.classList.add("typing");
@@ -129,7 +116,6 @@ async function send() {
         model: $("inp-model").value.trim(),
         messages: [
           ...(settings.systemPrompt ? [{ role: "system", content: settings.systemPrompt }] : []),
-          ...(pageMsg ? [pageMsg] : []),
           ...history,
         ],
         temperature: settings.temperature,
@@ -149,27 +135,82 @@ async function send() {
     if (rafPending) paint();
     bubble.classList.remove("typing");
     history.push({ role: "assistant", content: acc.trim() || "(no response)" });
+    await persistCurrentConversation();
     currentController = null;
     $("btn-send").hidden = false;
     $("btn-stop").hidden = true;
   }
 }
 
-/* ---------- Page context chip ---------- */
+/* ---------- Conversation persistence + history UI ---------- */
 
 function truncate(s, n) {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
-async function updatePageChip() {
-  const bar = $("page-bar");
-  let tab = null;
-  try { tab = await getActiveTab(); } catch (e) { /* ignore */ }
-  if (!tab || !tab.url) { bar.hidden = true; return; }
-  bar.hidden = false;
-  let host;
-  try { host = new URL(tab.url).host; } catch { host = tab.url; }
-  $("page-title").textContent = truncate(`${host} — ${tab.title || "untitled"}`, 48);
+async function persistCurrentConversation() {
+  if (!currentConvId || !history.length) return;
+  const firstUser = history.find((m) => m.role === "user");
+  await saveConversation({
+    id: currentConvId,
+    title: truncate(firstUser ? firstUser.content : "New chat", 40),
+    updatedAt: Date.now(),
+    messages: history,
+  });
+}
+
+async function renderHistoryList() {
+  const list = $("conv-list");
+  list.innerHTML = "";
+  const convs = await listConversations();
+  for (const c of convs) {
+    const item = document.createElement("div");
+    item.className = "conv-item" + (c.id === currentConvId ? " active" : "");
+
+    const open = document.createElement("button");
+    open.className = "conv-open";
+    const title = document.createElement("span");
+    title.className = "conv-title";
+    title.textContent = c.title || "New chat";
+    const time = document.createElement("small");
+    time.className = "conv-time";
+    time.textContent = new Date(c.updatedAt).toLocaleString();
+    open.append(title, time);
+    open.addEventListener("click", () => loadConversation(c.id));
+
+    const del = document.createElement("button");
+    del.className = "conv-del";
+    del.title = "Delete conversation";
+    del.textContent = "\u2715";
+    del.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Delete “${c.title}”?`)) return;
+      await deleteConversation(c.id);
+      if (c.id === currentConvId) startNewChat();
+      renderHistoryList();
+    });
+
+    item.append(open, del);
+    list.appendChild(item);
+  }
+}
+
+async function loadConversation(id) {
+  const convs = await listConversations();
+  const c = convs.find((x) => x.id === id);
+  if (!c) return;
+  currentConvId = id;
+  history = [...c.messages];
+  $("messages").innerHTML = "";
+  for (const m of history) addMessage(m.role === "assistant" ? "bot" : "user", m.content);
+  $("empty-hint").hidden = true;
+}
+
+function startNewChat() {
+  currentConvId = null;
+  history = [];
+  $("messages").innerHTML = "";
+  $("empty-hint").hidden = false;
 }
 
 /* ---------- Composer helpers ---------- */
@@ -186,11 +227,25 @@ async function init() {
   settings = await loadSettings();
   applyToInputs();
 
-  // Settings toggle
+  // Panel toggles (mutually exclusive)
+  const closePanels = (except) => {
+    $("settings-panel").hidden = except !== "settings";
+    $("history-panel").hidden = except !== "history";
+  };
   $("settings-btn").addEventListener("click", () => {
-    const panel = $("settings-panel");
-    panel.hidden = !panel.hidden;
+    closePanels($("settings-panel").hidden ? "settings" : null);
   });
+  $("history-btn").addEventListener("click", async () => {
+    if ($("history-panel").hidden) {
+      await renderHistoryList(); // refresh before showing
+      closePanels("history");
+    } else {
+      closePanels(null);
+    }
+  });
+
+  // New chat
+  $("btn-new-chat").addEventListener("click", startNewChat);
 
   // Presets
   $("preset-ollama").addEventListener("click", () => {
@@ -241,15 +296,11 @@ async function init() {
   $("btn-refresh-models").addEventListener("click", refreshModels);
   refreshModels();
 
-  // Page context chip (toggle + live tab title)
-  $("btn-page-ctx").addEventListener("click", () => {
-    includePage = !includePage;
-    $("btn-page-ctx").classList.toggle("on", includePage);
-    $("page-state").textContent = `include: ${includePage ? "on" : "off"}`;
-  });
-  chrome.tabs.onActivated.addListener(updatePageChip);
-  window.addEventListener("focus", updatePageChip);
-  updatePageChip();
+  // Restore the most recent conversation (persists across panel/tab closes)
+  const convs = await listConversations();
+  if (convs.length) {
+    await loadConversation(convs[0].id);
+  }
 
   // Composer
   const input = $("inp-message");

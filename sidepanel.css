@@ -43,7 +43,11 @@ body { display: flex; flex-direction: column; }
   border-bottom: 1px solid var(--border);
 }
 #app-title { font-weight: 600; }
-#settings-btn {
+.header-buttons {
+  display: flex;
+  gap: 2px;
+}
+.header-buttons button {
   background: none;
   border: none;
   color: var(--muted);
@@ -51,7 +55,7 @@ body { display: flex; flex-direction: column; }
   font-size: 18px;
   padding: 4px 6px;
 }
-#settings-btn:hover { color: var(--fg); }
+.header-buttons button:hover { color: var(--fg); }
 
 /* Settings */
 #settings-panel {
@@ -124,27 +128,66 @@ select { flex: 1; min-width: 0; }
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* Page context bar */
-#page-bar { padding: 0 10px 6px; }
-#btn-page-ctx {
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--muted);
+/* History panel */
+#history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  max-height: 55%;
+  overflow-y: auto;
+}
+#history-panel[hidden] { display: none; }
+#btn-new-chat {
+  background: var(--accent);
+  color: #fff;
+  border: none;
   border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 12px;
+  padding: 7px;
   cursor: pointer;
+}
+.conv-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.conv-item.active {
+  border-color: var(--accent);
+  background: rgba(79, 124, 255, 0.08);
+}
+.conv-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+.conv-title {
+  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#btn-page-ctx.on {
-  border-color: var(--accent);
-  color: var(--fg);
-  background: rgba(79, 124, 255, 0.10);
+.conv-time { font-size: 11px; color: var(--muted); }
+.conv-del {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
 }
+.conv-del:hover { color: #d9534f; }
 
 /* Composer */
 #composer {

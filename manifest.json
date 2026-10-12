@@ -5,12 +5,7 @@
   "description": "Chat with local LLM services (Ollama, LM Studio, llama.cpp, vLLM) in Chrome's native side panel.",
   "permissions": [
     "sidePanel",
-    "storage",
-    "tabs",
-    "scripting"
-  ],
-  "host_permissions": [
-    "<all_urls>"
+    "storage"
   ],
   "side_panel": {
     "default_path": "sidepanel.html"

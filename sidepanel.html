@@ -8,7 +8,10 @@
 <body>
   <header id="app-header">
     <span id="app-title">Local LLM</span>
-    <button id="settings-btn" title="Settings" aria-label="Settings">&#9881;</button>
+    <span class="header-buttons">
+      <button id="history-btn" title="History" aria-label="History">&#128376;</button>
+      <button id="settings-btn" title="Settings" aria-label="Settings">&#9881;</button>
+    </span>
   </header>
 
   <!-- Settings panel (toggled from header) -->
@@ -55,12 +58,11 @@
     </div>
   </main>
 
-  <!-- Page context (opt-in) -->
-  <div id="page-bar" hidden>
-    <button id="btn-page-ctx" title="Include the current page's content in your messages">
-      &#1284; <span id="page-title"></span>&nbsp;<span id="page-state">include: off</span>
-    </button>
-  </div>
+  <!-- History panel (toggled from header) -->
+  <section id="history-panel" hidden>
+    <button id="btn-new-chat">+ New chat</button>
+    <div id="conv-list"></div>
+  </section>
 
   <!-- Composer -->
   <footer id="composer">
